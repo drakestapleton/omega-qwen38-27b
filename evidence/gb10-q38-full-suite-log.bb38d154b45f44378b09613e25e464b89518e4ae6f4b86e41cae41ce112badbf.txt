@@ -1,0 +1,86 @@
+=== ENVIRONMENT ===
+2026-11-24T20:25:28Z
+Linux spark-b87b 7.0.0-1019-nvidia #19~24.04.2-Ubuntu SMP PREEMPT_DYNAMIC Sun Sep  6 18:35:11 UTC 2 aarch64 aarch64 aarch64 GNU/Linux
+name, driver_version, clocks.current.sm [MHz], temperature.gpu, power.draw [W]
+NVIDIA GB10, 580.173.02, 208 MHz, 47, 5.45 W
+47aa2bba666bca5238e44b71958327e7670b75258f64d80f5ae468a43b02f677  /home/drakestapleton/build/omega-qwen38-27b-bench/bin-v7/q38-decode
+7b9606f3ff90f312c89900eb4509fe914ddeba57f654240bb40593e3899120fb  /home/drakestapleton/build/omega-qwen38-27b-bench/bin-v7/q38-serve
+e3da4ae889c141e5eb625ec46c2966987144bd84324c644d20c1f795e8484d64  /home/drakestapleton/build/omega-qwen36-bench/apu-fullchip
+=== 1. LIVE SELF-TEST (q38-serve --self-test) ===
+=== QWEN 3.8 27B DENSE 100% PURE SEEDED-OMEGA ZERO-CUDA SERVER (q38-serve) ===
+Mode: Full-W4 (~13.8 GB trunk + 0.72 GB W4 lm_head + 128K KV)
+Loaded Qwen 3.8 ByteLevel BPE tokenizer (248,044 vocab)
+Loading 64 real layers + outside.safetensors into GB10 UVM...
+Loaded all 64 real layers + quantized W4 lm_head in ms=10347
+Running live real-weight q38-serve 128K self-test...
+Prompt 0: The capital of France is **Paris**.
+Prompt 1: The result of `1 + 2` is **3**.
+PASS: q38-serve real-weight 27B self-test
+=== 2. FULL-CHIP GB10 APU (20 CPU + 48 SM121 SMs) ===
+=== OMEGA PURE-OM2 FULL-CHIP GB10 APU ENGINE (20 CPU CORES + 48 BLACKWELL SMs = 6,164 CORES SIMULTANEOUSLY) ===
+GPU_48SM_ONLY_2B_SLICE: steps=1989672960 checksum=4391296788641087488 wall_us=1357 gops_x10=43986874
+FULLCHIP_APU_20CPU_48SM_2B: steps=2000000000 checksum=12007830798541130620 wall_us=1360 gops_x10=44117647 BIT_EXACT=PASS
+FULLCHIP_APU_20CPU_48SM_20B: steps=20000000000 checksum=9438687337694520784 wall_us=13569 gops_x10=44218439 BIT_EXACT=PASS
+=== 3. FULL-W4 DECODE (24 tok) ===
+=== QWEN 3.8 27B DENSE 100% PURE SEEDED-OMEGA ZERO-CUDA ENGINE (SM121) ===
+Loading 64 real layers + outside.safetensors into GB10 UVM...
+Loaded all 64 real layers + quantized W4 lm_head in ms=10353
+W4 Two-Pass Exact lm_head PARITY=EXACT vs Full BF16 (tok=271)
+Generated token IDs: 271 760 6511 314 9338 369 2972 57590 159034 248046 198 248044 248045 248045 248045 248068 271 248069 271 760 6511 314 9338 369 
+REAL_Q38_27B_ZERO_CUDA_DECODE: mode=w4 gen_tokens=24 avg_us_per_tok=73457 tok_s_x100=1361
+=== 4. EXACT FP8 DECODE (24 tok) ===
+=== QWEN 3.8 27B DENSE 100% PURE SEEDED-OMEGA ZERO-CUDA ENGINE (SM121) ===
+Loading 64 real layers + outside.safetensors into GB10 UVM...
+Loaded all 64 real layers + quantized W4 lm_head in ms=15468
+W4 Two-Pass Exact lm_head PARITY=EXACT vs Full BF16 (tok=271)
+Generated token IDs: 271 760 6511 314 9338 369 2972 57590 159034 248046 198 248044 248045 248045 248045 248068 271 248069 271 760 6511 314 9338 369 
+REAL_Q38_27B_ZERO_CUDA_DECODE: mode=fp8 gen_tokens=24 avg_us_per_tok=144294 tok_s_x100=693
+=== 5. HMMA PREFILL 1024 TOKENS ===
+=== QWEN 3.8 27B DENSE 100% PURE SEEDED-OMEGA ZERO-CUDA ENGINE (SM121) ===
+Loading 64 real layers + outside.safetensors into GB10 UVM...
+Loaded all 64 real layers + quantized W4 lm_head in ms=14825
+PREFILL_BENCH_Q38_W4: tokens=1024 prefill_ms=3808 prefill_tok_s=268
+=== 6. HMMA PREFILL 4096 TOKENS ===
+=== QWEN 3.8 27B DENSE 100% PURE SEEDED-OMEGA ZERO-CUDA ENGINE (SM121) ===
+Loading 64 real layers + outside.safetensors into GB10 UVM...
+Loaded all 64 real layers + quantized W4 lm_head in ms=14235
+PREFILL_BENCH_Q38_W4: tokens=4096 prefill_ms=15904 prefill_tok_s=257
+=== 7. HMMA PREFILL 16384 TOKENS ===
+=== QWEN 3.8 27B DENSE 100% PURE SEEDED-OMEGA ZERO-CUDA ENGINE (SM121) ===
+Loading 64 real layers + outside.safetensors into GB10 UVM...
+Loaded all 64 real layers + quantized W4 lm_head in ms=14102
+PREFILL_BENCH_Q38_W4: tokens=16384 prefill_ms=77370 prefill_tok_s=211
+=== 8. CONTINUOUS BATCH-4 DECODE (32 steps) ===
+=== QWEN 3.8 27B DENSE 100% PURE SEEDED-OMEGA ZERO-CUDA ENGINE (SM121) ===
+Loading 64 real layers + outside.safetensors into GB10 UVM...
+Loaded all 64 real layers + quantized W4 lm_head in ms=14053
+BATCH_DECODE_Q38: streams=4 total_toks=128 step_us=109595 agg_tok_s_x100=3649
+=== 9. CONTINUOUS BATCH-8 DECODE (32 steps) ===
+=== QWEN 3.8 27B DENSE 100% PURE SEEDED-OMEGA ZERO-CUDA ENGINE (SM121) ===
+Loading 64 real layers + outside.safetensors into GB10 UVM...
+Loaded all 64 real layers + quantized W4 lm_head in ms=14431
+BATCH_DECODE_Q38: streams=8 total_toks=256 step_us=190463 agg_tok_s_x100=4200
+=== 10a. SPECULATIVE VERIFY M=4 ===
+=== QWEN 3.8 27B DENSE 100% PURE SEEDED-OMEGA ZERO-CUDA ENGINE (SM121) ===
+Loading 64 real layers + outside.safetensors into GB10 UVM...
+Loaded all 64 real layers + quantized W4 lm_head in ms=14308
+SPEC_VERIFY_Q38: M=4 acc_x100=400 avg_us_per_tok=27229 tok_s_x100=3672
+=== 10b. SPECULATIVE VERIFY M=8 ===
+=== QWEN 3.8 27B DENSE 100% PURE SEEDED-OMEGA ZERO-CUDA ENGINE (SM121) ===
+Loading 64 real layers + outside.safetensors into GB10 UVM...
+Loaded all 64 real layers + quantized W4 lm_head in ms=14327
+SPEC_VERIFY_Q38: M=8 acc_x100=800 avg_us_per_tok=23742 tok_s_x100=4211
+=== 11. LIVE HTTP PROSE DECODE & 3K NEEDLE RECALL (q38-serve :18193) ===
+--- /health ---
+{"status":"ok","model":"qwen3.8-27b-fp8","engine":"omega-zero-cuda-q38","context_window":131072,"precision":"w4"}
+
+--- HTTP Short Factual Prose (max_tokens=32) ---
+{"id":"cmpl-q38","object":"chat.completion","model":"qwen3.8-27b-fp8","choices":[{"index":0,"message":{"role":"assistant","content":"The capital of France is **Paris**."},"finish_reason":"stop"}],"usage":{"prompt_tokens":19,"completion_tokens":8,"total_tokens":27},"timings":{"prefill_ms":236,"decode_ms":577}}
+
+--- HTTP Long-Form Prose Decode (max_tokens=256) ---
+{"id":"cmpl-q38","object":"chat.completion","model":"qwen3.8-27b-fp8","choices":[{"index":0,"message":{"role":"assistant","content":"# The Coherent Fabric: Architectural Synergy in Unified Memory Superchips\n\nThe evolution of high-performance computing has shifted from a paradigm of discrete, specialized silicon to one of deep integration. Modern \"superchips\"—such as Apple’s M-series and A-series SoCs, or AMD’s Ryzen AI processors—represent a fundamental architectural departure from traditional x86/PCIe-centric designs. By coupling Central Processing Unit (CPU) cores and Graphics Processing Unit (GPU) streaming multiprocessors (SMs) over a high-bandwidth, coherent interconnect, these chips create a unified memory space. This integration is not merely a marketing convenience; it is a critical engineering solution that addresses the memory bandwidth ceiling, optimizes L2 cache locality, and significantly reduces latency in autoregressive tasks such as large language model (LLM) decoding.\n\n## The Unified Memory Architecture and Coherent Interconnects\n\nIn traditional discrete architectures, the CPU and GPU reside on separate dies connected via a PCIe bus. This setup creates two distinct memory domains: system RAM (DDR5) accessible by the CPU, and high-bandwidth memory (HBM or GDDR) dedicated to the GPU. Data transfer between these domains requires explicit copying, introducing significant latency and bandwidth overhead.\n\nUnified"},"finish_reason":"stop"}],"usage":{"prompt_tokens":58,"completion_tokens":256,"total_tokens":314},"timings":{"prefill_ms":353,"decode_ms":18703}}
+
+--- HTTP 3K Needle-in-a-Haystack Recall ---
+{"id":"cmpl-q38","object":"chat.completion","model":"qwen3.8-27b-fp8","choices":[{"index":0,"message":{"role":"assistant","content":"**Captain Elena Vance** authorized deployment code **Aurora-742** at **Station Omega**."},"finish_reason":"stop"}],"usage":{"prompt_tokens":2994,"completion_tokens":22,"total_tokens":3016},"timings":{"prefill_ms":11519,"decode_ms":1766}}
+
+=== DONE ===
