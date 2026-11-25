@@ -1,0 +1,54 @@
+{
+  "name": "gb10-q38-sol-suite",
+  "omega_mv_commit": "1084bc08d074c9bd5ffaca895782aebbb320ff15",
+  "hardware": "NVIDIA DGX Spark GB10 (SM 12.1, 48 SMs, 273 GB/s peak / ~220 GB/s sustained LPDDR5X)",
+  "driver": "580.173.02 (Linux kernel open modules + signed GSP firmware; zero CUDA userspace)",
+  "model": "/home/aienalpha/models/qwen3.8-27b-fp8-017b9c7a",
+  "windows": {
+    "cli_prefill_batch_mtp": {
+      "window_id": "20261125T091626Z-d48125",
+      "receipt": "/home/drakestapleton/yardsticks/receipts/2026-11-25-q38-sol-v8.json",
+      "verdict": "quiet machine",
+      "nvrm_errors_delta": 0
+    },
+    "http_essay_6k_prefill": {
+      "window_id": "20261125T092807Z-b054d9",
+      "receipt": "/home/drakestapleton/yardsticks/receipts/2026-11-25-q38-sol-http.json",
+      "verdict": "quiet machine",
+      "nvrm_errors_delta": 0
+    }
+  },
+  "binaries": {
+    "q38-decode": {
+      "size_bytes": 1045504,
+      "sha256": "5dc814853ce455cccbfe7769a5a055cdfdd5109bc94e7a4c662fed1d930ead8f"
+    },
+    "q38-serve": {
+      "size_bytes": 1046528,
+      "sha256": "67b13075c62acd3978e596cda27de1e147dec0e68689ef70bf3ed69f1abe0d54"
+    }
+  },
+  "metrics": {
+    "w4_n1_cli_tok_s": 13.52,
+    "w4_n1_cli_us_per_tok": 73919,
+    "w4_n1_eff_bw_GB_s": 196.3,
+    "w4_n1_http_256tok_tok_s": 13.45,
+    "native_mtp5_cli_tok_s": 17.27,
+    "native_mtp5_cli_acc_per_step": 3.0,
+    "native_mtp5_cli_parity": "EXACT",
+    "native_mtp5_cli_speedup_vs_n1": 1.27,
+    "native_mtp5_http_256tok_tok_s": 13.8,
+    "batch8_agg_tok_s": 50.83,
+    "batch8_step_us": 157361,
+    "spec8_tok_s": 50.76,
+    "spec8_us_per_tok": 19700,
+    "prefill_1k_tok_s": 474,
+    "prefill_1k_ms": 2156,
+    "prefill_4k_tok_s": 460,
+    "prefill_4k_ms": 8893,
+    "prefill_16k_tok_s": 404,
+    "prefill_16k_ms": 40465,
+    "prefill_6348_http_tok_s": 444.7,
+    "prefill_6348_http_ms": 14274
+  }
+}
