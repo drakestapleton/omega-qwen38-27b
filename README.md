@@ -2,7 +2,7 @@
 
 **Qwen 3.8 27B Dense running on the Pure Seeded-Omega Zero-CUDA GB10 Engine & Full-Chip APU Stack.**
 
-This repository is a standalone, pinned-dependency deployment and benchmark harness (`omega-mv.lock` → `omega-mv@1084bc08d074`) for running **Qwen 3.8 27B Dense** (`Qwen3_5ForConditionalGeneration`: 64 layers, 48 Gated DeltaNet `16K/48V` + 16 Full-Attention `24Q/4KV` `hd=256`, `H=5120`, `I=17408`, `vocab=248,320`, `131,072`-token / `128K` context window) on **NVIDIA DGX Spark (GB10, SM 12.1)** with **zero CUDA userspace** (`ldd: not a dynamic executable` — zero `libcuda.so.1`, zero cuBLAS/cuDNN, zero `libc`, zero C, zero Rust, zero Python on the inference path).
+This repository is a standalone, pinned-dependency deployment and benchmark harness (`omega-mv.lock` → `omega-mv@37e6d7247c82`) for running **Qwen 3.8 27B Dense** (`Qwen3_5ForConditionalGeneration`: 64 layers, 48 Gated DeltaNet `16K/48V` + 16 Full-Attention `24Q/4KV` `hd=256`, `H=5120`, `I=17408`, `vocab=248,320`, `131,072`-token / `128K` context window) on **NVIDIA DGX Spark (GB10, SM 12.1)** with **zero CUDA userspace** (`ldd: not a dynamic executable` — zero `libcuda.so.1`, zero cuBLAS/cuDNN, zero `libc`, zero C, zero Rust, zero Python on the inference path).
 
 > **Driver & Firmware Disclosure:** "Zero CUDA" means zero NVIDIA userspace libraries or CUDA toolkit. Execution still opens `/dev/nvidiactl`, `/dev/nvidia0`, and `/dev/nvidia-uvm` through Linux kernel open modules (`nvidia` / `nvidia-uvm` `580.173.02`) and NVIDIA's signed GSP firmware.
 
@@ -10,26 +10,44 @@ This repository is a standalone, pinned-dependency deployment and benchmark harn
 
 ## Full-Chip GB10 APU & Pure-OM2 64-Layer 27B Engine (`om/gpu/q38/`)
 
-Built directly from pinned `omega-mv` (`1084bc08d074c9bd5ffaca895782aebbb320ff15`) via the self-hosted seeded compiler (`seed/out/omc`):
+Built directly from pinned `omega-mv` (`37e6d7247c82c18ee44fee041ca3c63e7397f6f5`) via the self-hosted seeded compiler (`seed/out/omc`):
 
 - **Full-Chip GB10 APU (`apu-fullchip`, `488 KB` static ELF):** Fires all **20 physical ARM CPU cores** (`10× Cortex-X925 @ 3.900 GHz` + `10× Cortex-A725 @ 2.808 GHz`) and all **48 Blackwell SM121 SMs** (`6,144` GPU cores) simultaneously over coherent NVLink-C2C (`4.422 T ops/s`, `BIT_EXACT=PASS`).
-- **28 Custom SM121 SASS Kernels for 27B Dense (`om/gpu/q38/emit_q38.om`):**
-  - `q38PreW4GemmSuper` (**128-token/CTA, 128-reg L2-Swizzled Overlapped Super-HMMA W4 GEMM**): swaps grid dims `(ceil(B/128), N/64, 1)` so all 4 `B`-tiles share weights in GB10's 24 MB L2 (`4×` less LPDDR5X traffic), overlaps coalesced `K=64` SMEM `W4`+`S` staging (`wb=0`) with transposed `LDS.128` `X` staging (`wb=2`), and unpacks W4 via zero-`I2F` IEEE-754 magic-bias `LOP3.LUT` → **`474 tok/s` (1K, `1.77×`) / `460 tok/s` (4K, `1.79×`) / `404 tok/s` (16K, `1.91×`)**.
-  - `q38W4GemmM8Hmma` (**100% Coalesced SMEM-W4 Tensor Core `HMMA.16816` for `B <= 8` & `lm_head`**): `3,328 B` SMEM (`8 CTAs/SM = 32 warps/SM = 100%` occupancy), single overlapped `LDG` wave (`0%` 32B sector waste), zero-`I2F` `LOP3` unpack → **`50.83 tok/s` Batch-8 (`157.4 ms/step`, `+21.0%`) & `50.76 tok/s` Spec-8**.
-  - `q38W4Gemv4R` (**Zero-`I2F` Overlapped 4-row/warp W4 GEMV**): overlaps `W`+`S` DRAM loads (`wb=0`) across 4 KiB streaming `X` SMEM staging (`wb=2`) → **`196.3 GB/s` effective DRAM bandwidth (`89.2%` of sustained GB10 LPDDR5X)**.
-  - **Native Qwen 3.8 27B MTP Speculative Drafter (`mtp.safetensors` → W4 in `152 ms`):** on-GPU `q38Bf16ToW4QuantAnyK` (`mtp.fc [5120, 10240]`), dedicated 1 GiB MTP KV cache, 100,880-row shortlist draft head, and full GPU GDN state+tail snapshot & exact rollback (`q38SpecRollbackGdn`) → **`17.27 tok/s` CLI `M=5` (`PARITY=EXACT`, `3.00` avg accepted tokens/step, `114.0%` of raw sustained `N=1` LPDDR5X ceiling!)** and `13.80 tok/s` live 256-tok HTTP prose (`--mtp`).
-  - `q38GdnStepRealBf16` & zero-barrier warp-resident `q38PreGdnStepBatch` (`48` V heads / `16` K heads), `q38FaAttendSplitF32` (Split-K `S=8` decode attention) & **Split-K `S=16` HMMA Flash-Attention-2** (`q38PreFaAttendSplitHmma`, `24Q/4KV`, `hd=256`).
-- **Full-W4 + Exact FP8 Dual Precision (`q38-decode`, `q38-serve`):** On-GPU FP8 → block-32 INT4 quantization (`~13.8 GB` trunk + `0.72 GB` W4 `lm_head` + `16 × 1 GiB` 128K KV cache + `32 MB` RoPE + `384 MB` prefill workspace) with **24/24 bit-identical generated tokens** between Full-W4 and Exact FP8.
-- **128K Context Window + OpenAI-Compatible HTTP Server (`q38-serve`):** Pure OM-2 `65,536`-bucket ByteLevel BPE tokenizer (`248,044` vocab) serving `GET /health`, `GET /v1/models`, and `POST /v1/chat/completions` (`--mtp` / `--fp8`).
+- **32 Custom SM121 SASS Kernels for 27B Dense (`om/gpu/q38/emit_q38.om`):**
+  - **Native Blackwell NVFP4 Tensor Core Suite (`--nvfp4` / `nv4p` / `nv4b8`, `OMMA.SF.16864.F32.E2M1.E2M1.UE4M3.4X`):**
+    - `q38Fp8ToNvfp4Quant` & `q38Bf16ToNvfp4ActQuant`: 1-cycle hardware `F2FP.E2M1` + `F2FP.E4M3` on-GPU quantizers (`9.70 s` warm load + quantize of all 64 layers!).
+    - `q38PreNvfp4GemmSuper` (128-tok/CTA L2-swizzled `OMMA.SF.16864`, zero software unpack, `6,912 B` SMEM): **`1,124 tok/s` (1K, `60.2 TFLOPS`) / `1,045 tok/s` (4K, `56.0 TFLOPS`) / `799 tok/s` (16K, `42.8 TFLOPS`)** — **`2.0×–2.4×` faster than W4 Super-HMMA** and **faster than CUDA TandemLLM (`685.5 tok/s`)** with **9/9 bit-identical answer tokens** (`\n\nThe capital of France is **Paris**.`).
+    - `q38Nvfp4GemmM8Omma`: `2,688 B` SMEM (`8 CTAs/SM = 100%` occ), `50.41 tok/s` Batch-8 / `49.87 tok/s` Spec-8.
+  - `q38PreW4GemmSuper` (**128-token/CTA, 128-reg L2-Swizzled Overlapped Super-HMMA W4 GEMM**): **`474 tok/s` (1K, `1.77×`) / `460 tok/s` (4K, `1.79×`) / `404 tok/s` (16K, `1.91×`)**.
+  - `q38W4GemmM8Hmma` (**100% Coalesced SMEM-W4 Tensor Core `HMMA.16816` for `B <= 8` & `lm_head`**): **`50.83 tok/s` Batch-8 (`157.4 ms/step`, `+21.0%`) & `50.76 tok/s` Spec-8**.
+  - `q38W4Gemv4R` (**Zero-`I2F` Overlapped 4-row/warp W4 GEMV**): **`196.3 GB/s` effective DRAM bandwidth (`89.2%` of sustained GB10 LPDDR5X)**.
+  - **Native Qwen 3.8 27B MTP Speculative Drafter (`mtp.safetensors` → W4 in `152 ms`):** **`17.27 tok/s` CLI `M=5` (`PARITY=EXACT`, `3.00` avg accepted tokens/step, `114.0%` of raw sustained `N=1` LPDDR5X ceiling!)** and `13.80 tok/s` live 256-tok HTTP prose (`--mtp`).
+  - `q38GdnStepRealBf16` & zero-barrier warp-resident `q38PreGdnStepBatch` (`48` V heads / `16` K heads), `q38FaAttendSplitF32` & **Split-K `S=16` HMMA Flash-Attention-2** (`q38PreFaAttendSplitHmma`, `24Q/4KV`, `hd=256`).
+- **Triple Precision (`Full-W4` + `Native NVFP4` + `Exact FP8`):** On-GPU FP8 → block-32 INT4 or block-16 NVFP4 (`4.50` bits/weight, `~13.8 GB` trunk + `0.72 GB` W4 `lm_head` + `16 × 1 GiB` 128K KV cache + `32 MB` RoPE + `384 MB` prefill workspace) plus Exact FP8 (`--fp8`).
+- **128K Context Window + OpenAI-Compatible HTTP Server (`q38-serve`):** Pure OM-2 `65,536`-bucket ByteLevel BPE tokenizer (`248,044` vocab) serving `GET /health`, `GET /v1/models`, and `POST /v1/chat/completions` (`--nvfp4` / `--mtp` / `--fp8`).
 
 ---
 
 ## Live DGX Spark GB10 Silicon Benchmarks
 
-Measured on **NVIDIA DGX Spark (GB10, `sm_121`, driver `580.173.02`, Linux `7.0.0-1019-nvidia` aarch64)** inside exclusive quiet `spark-window`s (`20261125T091626Z-d48125` & `20261125T092807Z-b054d9`, `verdict: quiet machine`, `nvrm_errors_delta: 0`) on `2026-11-25`, running real weights from `/home/aienalpha/models/qwen3.8-27b-fp8-017b9c7a` built from `omega-mv@1084bc08d074`:
+Measured on **NVIDIA DGX Spark (GB10, `sm_121`, driver `580.173.02`, Linux `7.0.0-1019-nvidia` aarch64)** inside exclusive quiet `spark-window`s (`20261125T130758Z-b15ffa`, `20261125T091626Z-d48125`, `20261125T092807Z-b054d9`, `verdict: quiet machine`, `nvrm_errors_delta: 0`) on `2026-11-25`, running real weights from `/home/aienalpha/models/qwen3.8-27b-fp8-017b9c7a` built from `omega-mv@37e6d7247c82`:
 
-- **Latest Speed-of-Light Quiet Window Receipt (`2026-11-25`):** [gb10-q38-sol-suite.f5b37cb5.json](evidence/gb10-q38-sol-suite.f5b37cb50e08654d2a4bb729d3d31ceca830d6a2eafa2e38fba2c5dc85ec55cb.json)
+- **Native NVFP4 `OMMA.SF.16864` Quiet Window Receipt (`2026-11-25`):** [gb10-q38-nvfp4-omma16864.33944316.json](evidence/gb10-q38-nvfp4-omma16864.3394431686d43f0edf03eab18ded855015444bf89eb52feda680bfc4dd5f1a0e.json)
+- **Full-W4 Super-HMMA + MTP Quiet Window Receipt (`2026-11-25`):** [gb10-q38-sol-suite.f5b37cb5.json](evidence/gb10-q38-sol-suite.f5b37cb50e08654d2a4bb729d3d31ceca830d6a2eafa2e38fba2c5dc85ec55cb.json)
 - **Prior Baseline Quiet Window Receipt (`2026-11-24`):** [gb10-q38-full-suite.19fedb86.json](evidence/gb10-q38-full-suite.19fedb864e9111f9b56bb17cd932bbd36cdda137371ab96cd914bc7ec1ead76e.json) · [raw log](evidence/gb10-q38-full-suite-log.bb38d154b45f44378b09613e25e464b89518e4ae6f4b86e41cae41ce112badbf.txt)
+
+### 0. Side-by-Side: Pure-OM2 Full-W4 (`HMMA.16816`) vs. Native Blackwell NVFP4 (`OMMA.SF.16864.E2M1`)
+
+| Workload | Full-W4 (`HMMA.16816` / `GEMV4R`) | **Native NVFP4 (`OMMA.SF.16864.E2M1`)** | NVFP4 vs. W4 | Verification |
+|---|---:|---:|---:|---|
+| **Warm Load + On-GPU Quantize** | `10.35 s` | **`9.70 s`** (`9,704 ms`) | **`1.07×` faster** | 1-cycle hardware `F2FP.E2M1` + `F2FP.E4M3` |
+| **1K Prefill (`1,024` tok)** | `474 tok/s` (`2,156 ms`, `25.4 TFLOPS`) | **`1,124 tok/s`** (`911 ms`, **`60.2 TFLOPS`**) | **`2.37×`** (`4.19×` vs orig) | `exit: 0`, `nvrm_errors_delta: 0` |
+| **4K Prefill (`4,096` tok)** | `460 tok/s` (`8,893 ms`, `24.7 TFLOPS`) | **`1,045 tok/s`** (`3,919 ms`, **`56.0 TFLOPS`**) | **`2.27×`** (`4.07×` vs orig) | `exit: 0`, `nvrm_errors_delta: 0` |
+| **16K Prefill (`16,384` tok)** | `404 tok/s` (`40,465 ms`, `21.7 TFLOPS`) | **`799 tok/s`** (`20,490 ms`, **`42.8 TFLOPS`**) | **`1.98×`** (`3.79×` vs orig) | Beats CUDA TandemLLM `685.5 tok/s` (`1.17×`) |
+| **Continuous Batch-8 (`N=8`)** | **`50.83 tok/s`** (`157.4 ms/step`) | `50.41 tok/s` (`158.7 ms/step`) | `0.99×` (DRAM bound) | Both at `4.50` bits/weight LPDDR5X ceiling |
+| **Speculative Verify (`M=8`)** | **`50.76 tok/s`** (`19.70 ms/tok`) | `49.87 tok/s` (`20.05 ms/tok`) | `0.98×` (DRAM bound) | `nvrm_errors_delta: 0` |
+| **Answer Token Parity (`N=1`)** | `271 760 6511 314 9338 369 2972 57590 159034` | **`271 760 6511 314 9338 369 2972 57590 159034`** | **9/9 bit-identical** | Exact: `The capital of France is **Paris**.` |
+| **`N=1` Decode** | **`13.52 tok/s`** (`17.27` Native MTP) | `6.38 tok/s` (`B=1` on M8 OMMA kernel) | W4 GEMV4R `2.1×` faster | Dedicated NVFP4 `GEMV4R` not yet needed (`4.50` bpw) |
 
 ### 1. Prose Decode, Native 27B MTP, Continuous Batched Decode & Speculative Verify
 

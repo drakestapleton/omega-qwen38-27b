@@ -1,0 +1,40 @@
+{
+  "name": "gb10-q38-nvfp4-omma16864",
+  "omega_mv_commit": "37e6d7247c82c18ee44fee041ca3c63e7397f6f5",
+  "hardware": "NVIDIA DGX Spark GB10 (SM 12.1, 48 SMs, OMMA.SF.16864.F32.E2M1.E2M1.UE4M3.4X)",
+  "driver": "580.173.02 (Linux kernel open modules + signed GSP firmware; zero CUDA userspace)",
+  "model": "/home/aienalpha/models/qwen3.8-27b-fp8-017b9c7a",
+  "window_id": "20261125T130758Z-b15ffa",
+  "receipt": "/home/drakestapleton/yardsticks/receipts/2026-11-25-q38-nvfp4-verified.json",
+  "verdict": "quiet machine",
+  "exit": 0,
+  "nvrm_errors_delta": 0,
+  "binaries": {
+    "q38-decode": {
+      "size": "1.1M",
+      "sha256": "22ebb6fa3e920c8c0c87d1ae02aa89af5bb4abf3811dd1213fbed89b8b810997"
+    },
+    "q38-serve": {
+      "size": "1.1M",
+      "sha256": "90d4b40d689135663c55a3f50ed478fc98c7ee4bb410731dbcc888838196f353"
+    }
+  },
+  "metrics": {
+    "warm_load_ms": 9704,
+    "token_parity_first9": "EXACT (271 760 6511 314 9338 369 2972 57590 159034)",
+    "nvfp4_prefill_1k_tok_s": 1124,
+    "nvfp4_prefill_1k_ms": 911,
+    "nvfp4_prefill_1k_tflops": 60.2,
+    "nvfp4_prefill_4k_tok_s": 1045,
+    "nvfp4_prefill_4k_ms": 3919,
+    "nvfp4_prefill_4k_tflops": 56.0,
+    "nvfp4_prefill_16k_tok_s": 799,
+    "nvfp4_prefill_16k_ms": 20490,
+    "nvfp4_prefill_16k_tflops": 42.8,
+    "nvfp4_batch8_tok_s": 50.41,
+    "nvfp4_batch8_step_us": 158674,
+    "nvfp4_spec8_tok_s": 49.87,
+    "nvfp4_spec8_us_per_tok": 20051,
+    "nvfp4_b1_omma_tok_s": 6.38
+  }
+}
